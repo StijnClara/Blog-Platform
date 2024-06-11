@@ -1,6 +1,6 @@
 <?php
-
 include 'config.php';
+include 'includes/header.php';
 
 session_start();
 if (!isset($_SESSION['user_id'])) {
@@ -9,19 +9,31 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $post_id = $_GET['id'];
+$user_id = $_SESSION['user_id'];
 
-// Check if the post belongs to the logged-in user
-$sql = "SELECT * FROM posts WHERE id = $post_id AND user_id = " . $_SESSION['user_id'];
-$result = $conn->query($sql);
+// Delete from post_categories first
+$sql = "DELETE FROM post_categories WHERE post_id = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $post_id);
+$stmt->execute();
+$stmt->close();
 
-if ($result->num_rows == 0) {
-    echo "You don't have permission to delete this post.";
-    exit();
-}
+// Delete comments associated with the post
+$sql = "DELETE FROM comments WHERE post_id = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $post_id);
+$stmt->execute();
+$stmt->close();
 
-$sql = "DELETE FROM posts WHERE id = $post_id";
-if ($conn->query($sql) === TRUE) {
+// Delete the post
+$sql = "DELETE FROM posts WHERE id = ? AND user_id = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("ii", $post_id, $user_id);
+
+if ($stmt->execute()) {
     header("Location: index.php");
 } else {
-    echo "Error: " . $sql . "<br>" . $conn->error;
+    echo "Error: " . $stmt->error;
 }
+$stmt->close();
+?>
